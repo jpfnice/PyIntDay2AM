@@ -1,6 +1,7 @@
 
-
 import pickle
+import sqlite3
+
 
 class Record:
     def __init__(self, name, time, date, temperature):
@@ -121,22 +122,50 @@ class ListOfRecord:
         Read the table (using a select statement)
         and make use of the corresponding data to construct a "listOfRecord"
         
+        SQL statements to construct the table:
         drop table temperatures
         create table temperatures (city varchar(20), 
                                    time time,
                                    date date,
                                    temp float)
         """
-        pass
+        try:
+            lr=ListOfRecord()
+            conn=sqlite3.connect(r"epfl.db")
+            cursor=conn.cursor()
+            cursor.execute(f"select * from {tableName}")
+            while True:
+                row = cursor.fetchone()
+                if row == None:
+                    break
+                print(f"{row[0]:12s} -> {row[1]}, {row[2]}, {row[3]:.2f}")
+                lr.addRecord(Record(row[0], str(row[1]), str(row[2]), row[3]))
+            return lr
+            cursor.close()
+            conn.close()
+        except Exception as ex:
+            print(ex)
     
-    def to_sql(tableName):
+    def to_sql(self, tableName):
         """
         Insert in the table tableName (using insert statements)
         the current "listOfRecord"
         """
-        pass
-        
+        try:
+            conn=sqlite3.connect(r"epfl.db")
+            cursor=conn.cursor()
+            for e in self:
+                print (e.time, e.date.replace('/','-'))
+                cursor.execute(f"insert into {tableName} values ('{e.city}', '{e.time}','{e.date.replace('/','-')}', {e.temperature})")
+                cursor.execute("commit") 
+            cursor.close()
+            conn.close()
+        except Exception as ex:
+            print(ex)
+            
 if __name__ == "__main__":
+    # lofr=ListOfRecord.read_sql("temperatures")
+    # print(lofr)
       
     lofr=ListOfRecord.parseFile("measures.txt")
     print(lofr)
@@ -144,28 +173,4 @@ if __name__ == "__main__":
     for r in lofr:
         print(r)
         
-    lofr.saveIntoFile("data.out")
-    
-    newlist=ListOfRecord.readFromFile("data.out")
-    print(newlist)
-    print("Newlist type: ", type(newlist))
-    city="Geneva"
-    result=lofr.averageTemp(city)
-    print(result)
-    city="Lausanne"
-    result=lofr.averageTemp(city)
-    print(result)
-    city="Bern"
-    result=lofr.averageTemp(city)
-    print(result)
-    result=lofr.minMax(city)
-    print("Mini, maxi:", result)
-    result=lofr.minMaxAll()
-    print("Mini, maxi all:", result)
-    city="Neuchatel"
-    if city in lofr:
-        result=lofr.averageTemp(city)
-        print("Average:", result)
-    else:
-        print(f"{city} not in the list of record")
-    
+    lofr.to_sql("temperatures")
